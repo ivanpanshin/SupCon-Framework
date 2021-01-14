@@ -25,7 +25,7 @@ def parse_config():
     parser.add_argument(
         "--config_name",
         type=str,
-        default="configs/train/swa_supcon_resnet18-product-version3_stage1.yml",
+        default="configs/train/swa_supcon_resnet18-product-version3_stage1.yml"
     )
 
     parser_args = parser.parse_args()

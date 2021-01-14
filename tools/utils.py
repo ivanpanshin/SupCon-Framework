@@ -1,4 +1,5 @@
 import torch
+import torchvision
 import pandas as pd
 import albumentations as A
 from albumentations import pytorch as AT
@@ -80,17 +81,19 @@ def build_transforms(second_stage):
 
 
 def build_loaders(data_dir, transforms, batch_sizes, num_workers, second_stage=False):
-    train = pd.read_csv("{}/annotations/train.csv".format(data_dir))
-    valid = pd.read_csv('{}/annotations/valid.csv'.format(data_dir))
-
     if second_stage:
-        train_features_dataset = SupConDataset(data_dir, "train", transforms['train_transforms'], train, True)
+        train_features_dataset = SupConDataset(data_dir=data_dir, train=True,
+                                               transform=transforms['train_transforms'], second_stage=True)
     else:
         # train_features_dataset is used for evaluation -> hence, we don't need TwoCropTransform
-        train_features_dataset = SupConDataset(data_dir, "train", transforms['valid_transforms'], train, True)
-        train_supcon_dataset = SupConDataset(data_dir, "train", TwoCropTransform(transforms['train_transforms']), train)
+        train_features_dataset = SupConDataset(data_dir=data_dir, train=True,
+                                               transform=transforms['valid_transforms'], second_stage=True)
 
-    valid_dataset = SupConDataset(data_dir, 'train', transforms['valid_transforms'], valid, True)
+        train_supcon_dataset = SupConDataset(data_dir=data_dir, train=True,
+                                               transform=TwoCropTransform(transforms['train_transforms']), second_stage=False)
+
+    valid_dataset = SupConDataset(data_dir=data_dir, train=False,
+                                               transform=transforms['valid_transforms'], second_stage=True)
 
     if not second_stage:
         train_supcon_loader = DataLoader(

@@ -39,7 +39,7 @@ if __name__ == "__main__":
     num_classes = hyperparams['model']['num_classes']
     amp = hyperparams['train']['amp']
     ema = hyperparams['train']['ema']
-    ema_decay_per_epoch = hyperparams['train']['ema_decay']
+    ema_decay_per_epoch = hyperparams['train']['ema_decay_per_epoch']
     n_epochs = hyperparams["train"]["n_epochs"]
     logging_name = hyperparams['train']['logging_name']
     target_metric = hyperparams['train']['target_metric']

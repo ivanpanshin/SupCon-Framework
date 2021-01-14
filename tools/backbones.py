@@ -1,6 +1,6 @@
 import torchvision.models as models
 
-
+# for timm models we don't have such files, since it provides a simple wrapper timm.create_model. Check tools.models.py
 BACKBONES = {
     "alexnet": models.alexnet,
     "resnet18": models.resnet18,

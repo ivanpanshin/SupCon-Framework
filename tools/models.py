@@ -1,24 +1,41 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import timm
 
 from .backbones import BACKBONES
 
 
 def create_encoder(backbone):
-    model = BACKBONES[backbone](pretrained=True)
-    features_dim = model.fc.in_features
+    try:
+        if 'timm_' in backbone:
+            backbone = backbone.split('_')[-1]
+            timm.create_model(model_name=backbone, pretrained=True)
+        else:
+            model = BACKBONES[backbone](pretrained=True)
+    except RuntimeError or KeyError:
+        raise RuntimeError('Specify the correct backbone name. Either one of torchvision backbones, or a timm backbone.'
+                           'For timm - add prefix \'timm_\'. For instance, timm_resnet18')
+
+    layers = torch.nn.Sequential(*list(model.children()))
+    try:
+        potential_last_layer = layers[-1]
+        while not isinstance(potential_last_layer, nn.Linear):
+            potential_last_layer = potential_last_layer[-1]
+    except TypeError:
+        raise TypeError('Can\'t find the linear layer of the model')
+
+    features_dim = potential_last_layer.in_features
     model = torch.nn.Sequential(*list(model.children())[:-1])
 
     return model, features_dim
 
 
 class SupConModel(nn.Module):
-    def __init__(self, backbone='resnet50', embedding_dim=128, second_stage=False, num_classes=None, only_features=False):
+    def __init__(self, backbone='resnet50', embedding_dim=128, second_stage=False, num_classes=None):
         super(SupConModel, self).__init__()
         self.encoder, features_dim = create_encoder(backbone)
         self.second_stage = second_stage
-        self.only_features = only_features
         self.embedding_dim = embedding_dim
 
         if self.second_stage:
@@ -38,4 +55,3 @@ class SupConModel(nn.Module):
         else:
             feat = self.encoder(x).squeeze()
             return F.normalize(self.head(feat), dim=1)
-

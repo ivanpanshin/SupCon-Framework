@@ -1,15 +1,18 @@
-train:
-  n_epochs: 100
+model:
   backbone: resnet18
-  ckpt_pretrained:
-  amp: True # set this to True, if your GPU supports FP16. 2080Ti - okay, 1080Ti - not okay
-  logging_name: supcon_first_stage
-  target_metric: precision_at_1
-  stage: first # first = Supcon, second = FC finetuning for classification
-
-dataset:
-  data_dir: data/product_version3
+  ckpt_pretrained: weights/supcon_first_stage/swa
   num_classes: 44
+
+train:
+  n_epochs: 50
+  amp: True # set this to True, if your GPU supports FP16. 2080Ti - okay, 1080Ti - not okay
+  ema: True
+  ema_decay: 0.99
+  logging_name: supcon_second_stage
+  target_metric: accuracy
+  stage: second # first = Supcon, second = FC finetuning for classification
+
+dataset: data/product_version3
 
 dataloaders:
   train_batch_size: 200 # the higher - the better
@@ -24,11 +27,11 @@ optimizer:
 scheduler:
   name: CosineAnnealingLR
   params:
-    T_max: 100
+    T_max: 50
     eta_min: 0.01
 
 criterion:
-  name: 'SupCon'
+  name: 'LabelSmoothing'
   params:
-    temperature: 0.1
-
+    smoothing: 0.01
+    classes: 44

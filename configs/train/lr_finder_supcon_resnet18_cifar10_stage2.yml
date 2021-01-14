@@ -1,14 +1,14 @@
 model:
   backbone: resnet18
   ckpt_pretrained:
-  num_classes:
+  num_classes: 10
 
-dataset: data/product_version3
+dataset: data/cifar10
 
 dataloaders:
   train_batch_size: 200 # the higher - the better
   valid_batch_size: 200
-  num_workers: 12 # set this to num of threads in your CPU
+  num_workers: 16 # set this to num of threads in your CPU
 
 optimizer:
   name: SGD
@@ -17,5 +17,4 @@ optimizer:
 
 criterion:
   name: 'CrossEntropy'
-
 

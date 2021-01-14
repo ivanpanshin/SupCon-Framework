@@ -2,10 +2,11 @@ import argparse
 import logging
 import os
 import time
-import numpy as np
 import torch
 import yaml
+import shutil
 from torch.utils.tensorboard import SummaryWriter
+from torch_ema import ExponentialMovingAverage
 
 from tools import utils
 
@@ -17,7 +18,7 @@ def parse_config():
     parser.add_argument(
         "--config_name",
         type=str,
-        default="configs/train/train_supcon_resnet18-product-version3.yml",
+        default="configs/train/train_supcon_resnet18-product-version3_stage1.yml",
     )
 
     parser_args = parser.parse_args()
@@ -29,21 +30,24 @@ def parse_config():
 
 
 if __name__ == "__main__":
+    # parse hyperparameters
     hyperparams = parse_config()
+    print(hyperparams)
 
-    backbone = hyperparams["train"]["backbone"]
-    pretrained = hyperparams['train']['ckpt_pretrained']
+    backbone = hyperparams["model"]["backbone"]
+    ckpt_pretrained = hyperparams['model']['ckpt_pretrained']
+    num_classes = hyperparams['model']['num_classes']
     amp = hyperparams['train']['amp']
+    ema = hyperparams['train']['ema']
+    ema_decay = hyperparams['train']['ema_decay']
     n_epochs = hyperparams["train"]["n_epochs"]
     logging_name = hyperparams['train']['logging_name']
     target_metric = hyperparams['train']['target_metric']
     stage = hyperparams['train']['stage']
-    data_dir = hyperparams["dataset"]["data_dir"]
+    data_dir = hyperparams["dataset"]
     optimizer_params = hyperparams["optimizer"]
     scheduler_params = hyperparams["scheduler"]
     criterion_params = hyperparams["criterion"]
-
-    if not amp: scaler = None
 
     batch_sizes = {
         "train_batch_size": hyperparams["dataloaders"]["train_batch_size"],
@@ -51,11 +55,17 @@ if __name__ == "__main__":
     }
     num_workers = hyperparams["dataloaders"]["num_workers"]
 
+    if not amp: scaler = None
+
     utils.seed_everything()
 
-    transforms = utils.build_transforms(second_stage=(stage is 'first'))
-    loaders = utils.build_loaders(data_dir, transforms, batch_sizes, num_workers, second_stage=(stage is 'first'))
-    model = utils.build_model(backbone, second_stage=(stage is 'first'), pretrained=pretrained).cuda()
+    # create model, loaders, optimizer, etc
+    transforms = utils.build_transforms(second_stage=(stage == 'second'))
+    loaders = utils.build_loaders(data_dir, transforms, batch_sizes, num_workers, second_stage=(stage == 'second'))
+    model = utils.build_model(backbone, second_stage=(stage == 'second'), num_classes=num_classes, ckpt_pretrained=ckpt_pretrained).cuda()
+
+    if ema:
+        ema = ExponentialMovingAverage(model.parameters(), decay=ema_decay)
 
     optim = utils.build_optim(model, optimizer_params, scheduler_params, criterion_params)
     criterion, optimizer, scheduler = (
@@ -63,9 +73,20 @@ if __name__ == "__main__":
         optim["optimizer"],
         optim["scheduler"],
     )
+
+    # handle logging (regular logs, tensorboard, and weights)
     if logging_name is None:
         logging_name = "stage_{}_model_{}_dataset_{}".format(stage, backbone, data_dir.split("/")[-1])
 
+    shutil.rmtree("weights/{}".format(logging_name), ignore_errors=True)
+    shutil.rmtree(
+        "runs/{}".format(logging_name),
+        ignore_errors=True,
+    )
+    shutil.rmtree(
+        "logs/{}".format(logging_name),
+        ignore_errors=True,
+    )
     os.makedirs(
         "logs/{}".format(logging_name),
         exist_ok=True,
@@ -76,16 +97,21 @@ if __name__ == "__main__":
     logging_path = os.path.join(logging_dir, "train.log")
     logging.basicConfig(filename=logging_path, level=logging.INFO, filemode="w+")
 
+    # epoch loop
     metric_best = 0
     for epoch in range(n_epochs):
         utils.add_to_logs(logging, "{}, epoch {}".format(time.ctime(), epoch))
 
         start_training_time = time.time()
         if stage == 'first':
-            train_metrics = utils.train_epoch_constructive(loaders['train_supcon_loader'], model, criterion, optimizer, scaler)
+            train_metrics = utils.train_epoch_constructive(loaders['train_supcon_loader'], model, criterion, optimizer, scaler, ema)
         else:
-            train_metrics = utils.train_epoch_ce(loaders['train_loader'], model, criterion, optimizer, scaler)
+            train_metrics = utils.train_epoch_ce(loaders['train_features_loader'], model, criterion, optimizer, scaler, ema)
         end_training_time = time.time()
+
+        if ema:
+            copy_of_model_parameters = utils.copy_parameters_from_model(model)
+            ema.copy_to(model.parameters())
 
         start_validation_time = time.time()
         if stage == 'first':
@@ -98,8 +124,15 @@ if __name__ == "__main__":
                                                                                                          end_training_time - start_training_time,
                                                                                                          end_validation_time - start_validation_time,
                                                                                                          train_metrics['loss'], valid_metrics))
-
+        # write train and valid metrics to the logs
         utils.add_to_tensorboard_logs(writer, train_metrics['loss'], "Loss/train", epoch)
+        for valid_metric in valid_metrics:
+            try:
+                utils.add_to_tensorboard_logs(writer, valid_metrics[valid_metric],
+                                              '{}/validation'.format(valid_metric), epoch)
+            except AssertionError:
+                # in case valid metric is a list
+                pass
 
         utils.add_to_logs(
             logging,
@@ -109,7 +142,7 @@ if __name__ == "__main__":
                 valid_metrics
             ),
         )
-
+        # check if the best value of metric changed. If so -> save the model
         if valid_metrics[target_metric] > metric_best:
             utils.add_to_logs(
                 logging,
@@ -134,6 +167,10 @@ if __name__ == "__main__":
                 ),
             )
             metric_best = valid_metrics[target_metric]
+
+        # if ema is used, go back to regular weights without ema
+        if ema:
+            utils.copy_parameters_to_model(copy_of_model_parameters, model)
 
         scheduler.step()
 

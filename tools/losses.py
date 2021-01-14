@@ -111,4 +111,5 @@ class LabelSmoothingLoss(nn.Module):
 
 
 LOSSES = {'SupCon': SupConLoss,
-          'LabelSmoothing': LabelSmoothingLoss}
+          'LabelSmoothing': LabelSmoothingLoss,
+          'CrossEntropy': nn.CrossEntropyLoss}

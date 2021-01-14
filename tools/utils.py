@@ -1,23 +1,16 @@
 import torch
-import torch.nn as nn
 import pandas as pd
-import torchvision.models as models
-import torch.nn.functional as F
-import time
 import albumentations as A
 from albumentations import pytorch as AT
-from torch.utils.data import DataLoader, Dataset
-import torch.optim as optim
+from torch.utils.data import DataLoader
 import random
 import os
 import numpy as np
-import cv2
 import torch.backends.cudnn as cudnn
-from sklearn.metrics import confusion_matrix, f1_score
+from sklearn.metrics import f1_score
 
 from pytorch_metric_learning.utils.accuracy_calculator import AccuracyCalculator
 
-from .backbones import BACKBONES
 from .losses import LOSSES
 from .optimizers import OPTIMIZERS
 from .schedulers import SCHEDULERS
@@ -87,7 +80,6 @@ def build_transforms(second_stage):
 
 
 def build_loaders(data_dir, transforms, batch_sizes, num_workers, second_stage=False):
-
     train = pd.read_csv("{}/annotations/train.csv".format(data_dir))
     valid = pd.read_csv('{}/annotations/valid.csv'.format(data_dir))
 
@@ -100,9 +92,10 @@ def build_loaders(data_dir, transforms, batch_sizes, num_workers, second_stage=F
 
     valid_dataset = SupConDataset(data_dir, 'train', transforms['valid_transforms'], valid, True)
 
-    train_supcon_loader = DataLoader(
-        train_supcon_dataset, batch_size=batch_sizes['train_batch_size'], shuffle=True,
-        num_workers=num_workers, pin_memory=True)
+    if not second_stage:
+        train_supcon_loader = DataLoader(
+            train_supcon_dataset, batch_size=batch_sizes['train_batch_size'], shuffle=True,
+            num_workers=num_workers, pin_memory=True)
     train_features_loader = DataLoader(
         train_features_dataset, batch_size=batch_sizes['train_batch_size'], shuffle=True,
         num_workers=num_workers, pin_memory=True, drop_last=True)
@@ -115,17 +108,16 @@ def build_loaders(data_dir, transforms, batch_sizes, num_workers, second_stage=F
     return {'train_supcon_loader': train_supcon_loader, 'train_features_loader': train_features_loader, 'valid_loader': valid_loader}
 
 
-def build_model(backbone, second_stage=False, num_classes=None, pretrained=None):
+def build_model(backbone, second_stage=False, num_classes=None, ckpt_pretrained=None):
     model = SupConModel(backbone=backbone, second_stage=second_stage, num_classes=num_classes)
 
-    if pretrained:
-        model.load_state_dict(torch.load(pretrained)['model_state_dict'], strict=False)
+    if ckpt_pretrained:
+        model.load_state_dict(torch.load(ckpt_pretrained)['model_state_dict'], strict=False)
 
     return model
 
 
 def build_optim(model, optimizer_params, scheduler_params, loss_params):
-
     if 'params' in loss_params:
         criterion = LOSSES[loss_params['name']](**loss_params['params'])
     else:
@@ -165,7 +157,7 @@ def compute_embeddings(loader, model, scaler):
     return np.float32(total_embeddings), total_labels.astype(int)
 
 
-def train_epoch_constructive(train_loader, model, criterion, optimizer, scaler):
+def train_epoch_constructive(train_loader, model, criterion, optimizer, scaler, ema):
     model.train()
     train_loss = []
 
@@ -202,10 +194,34 @@ def train_epoch_constructive(train_loader, model, criterion, optimizer, scaler):
             loss.backward()
             optimizer.step()
 
+        if ema:
+            ema.update(model.parameters())
+
     return {'loss': np.mean(train_loss)}
 
 
-def train_epoch_ce(train_loader, model, criterion, optimizer, scaler):
+def validation_constructive(valid_loader, train_loader, model, scaler):
+    calculator = AccuracyCalculator(k=1)
+    model.eval()
+
+    query_embeddings, query_labels = compute_embeddings(valid_loader, model, scaler)
+    reference_embeddings, reference_labels = compute_embeddings(train_loader, model, scaler)
+
+    acc_dict = calculator.get_accuracy(
+        query_embeddings,
+        reference_embeddings,
+        query_labels,
+        reference_labels,
+        embeddings_come_from_same_source=False
+    )
+
+    del query_embeddings, query_labels, reference_embeddings, reference_labels
+    torch.cuda.empty_cache()
+
+    return acc_dict
+
+
+def train_epoch_ce(train_loader, model, criterion, optimizer, scaler, ema):
     model.train()
     train_loss = []
 
@@ -227,6 +243,9 @@ def train_epoch_ce(train_loader, model, criterion, optimizer, scaler):
             loss.backward()
             optimizer.step()
 
+        if ema:
+            ema.update(model.parameters())
+
         del data, target, output
         torch.cuda.empty_cache()
 
@@ -238,7 +257,7 @@ def validation_ce(model, criterion, valid_loader, scaler):
     val_loss = []
     valid_bs = valid_loader.batch_size
     # note that it's okay to do len(loader) * bs, since drop_last=True is enabled
-    y_pred, y_true = np.zeros(len(valid_loader)*valid_loader.batch_size), np.zeros(len(valid_loader)*valid_loader.batch_size)
+    y_pred, y_true = np.zeros(len(valid_loader)*valid_bs), np.zeros(len(valid_loader)*valid_bs)
     correct_samples = 0
 
     for batch_i, (data, target) in enumerate(valid_loader):
@@ -268,28 +287,18 @@ def validation_ce(model, criterion, valid_loader, scaler):
     valid_loss = np.mean(val_loss)
     f1_scores = f1_score(y_true, y_pred, average=None)
     f1_score_macro = f1_score(y_true, y_pred, average='macro')
-    accuracy_score = correct_samples / (len(valid_loader.dataset))
+    accuracy_score = correct_samples / (len(valid_loader)*valid_bs)
 
     metrics = {"loss": valid_loss, "accuracy": accuracy_score, "f1_scores": f1_scores, 'f1_score_macro': f1_score_macro}
     return metrics
 
 
-def validation_constructive(valid_loader, train_loader, model, scaler):
-    calculator = AccuracyCalculator(k=1)
-    model.eval()
+def copy_parameters_from_model(model):
+    copy_of_model_parameters = [p.clone().detach() for p in model.parameters() if p.requires_grad]
+    return copy_of_model_parameters
 
-    query_embeddings, query_labels = compute_embeddings(valid_loader, model, scaler)
-    reference_embeddings, reference_labels = compute_embeddings(train_loader, model, scaler)
 
-    acc_dict = calculator.get_accuracy(
-        query_embeddings,
-        reference_embeddings,
-        query_labels,
-        reference_labels,
-        embeddings_come_from_same_source=False
-    )
-
-    del query_embeddings, query_labels, reference_embeddings, reference_labels
-    torch.cuda.empty_cache()
-
-    return acc_dict
+def copy_parameters_to_model(copy_of_model_parameters, model):
+    for s_param, param in zip(copy_of_model_parameters, model.parameters()):
+        if param.requires_grad:
+            param.data.copy_(s_param.data)

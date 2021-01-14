@@ -39,7 +39,7 @@ if __name__ == "__main__":
     num_classes = hyperparams['model']['num_classes']
     amp = hyperparams['train']['amp']
     ema = hyperparams['train']['ema']
-    ema_decay = hyperparams['train']['ema_decay']
+    ema_decay_per_epoch = hyperparams['train']['ema_decay']
     n_epochs = hyperparams["train"]["n_epochs"]
     logging_name = hyperparams['train']['logging_name']
     target_metric = hyperparams['train']['target_metric']
@@ -65,6 +65,8 @@ if __name__ == "__main__":
     model = utils.build_model(backbone, second_stage=(stage == 'second'), num_classes=num_classes, ckpt_pretrained=ckpt_pretrained).cuda()
 
     if ema:
+        iters = len(loaders['train_features_loader'])
+        ema_decay = ema_decay_per_epoch**(1/iters)
         ema = ExponentialMovingAverage(model.parameters(), decay=ema_decay)
 
     optim = utils.build_optim(model, optimizer_params, scheduler_params, criterion_params)

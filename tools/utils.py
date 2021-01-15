@@ -48,8 +48,8 @@ class TwoCropTransform:
 def build_transforms(second_stage):
     if second_stage:
         train_transforms = A.Compose([
-            A.Flip(),
-            A.Rotate(),
+            #A.Flip(),
+            #A.Rotate(),
             A.Resize(224, 224),
             A.Normalize(),
             AT.ToTensorV2()

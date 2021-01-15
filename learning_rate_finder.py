@@ -12,7 +12,7 @@ def parse_config():
     parser.add_argument(
         "--config_name",
         type=str,
-        default="configs/train/lr_finder_supcon_resnet18-product-version3_stage1.yml",
+        default="configs/train/lr_finder_supcon_resnet18_cifar10_stage2.yml",
     )
 
     parser_args = parser.parse_args()

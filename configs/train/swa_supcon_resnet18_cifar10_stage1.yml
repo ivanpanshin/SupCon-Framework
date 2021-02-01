@@ -5,7 +5,7 @@ model:
 
 train:
   amp: True # set this to True, if your GPU supports FP16. 2080Ti - okay, 1080Ti - not okay
-  weights_dir: weights/supcon_first_stage
+  weights_dir: weights/supcon_first_stage_cifar10
   stage: first
 
 dataset: data/cifar10

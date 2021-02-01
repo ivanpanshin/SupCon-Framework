@@ -18,7 +18,7 @@ def parse_config():
     parser.add_argument(
         "--config_name",
         type=str,
-        default="configs/train/train_supcon_resnet18_cifar10_stage1.yml",
+        default="configs/train/train_supcon_resnet18_cifar10_stage2.yml",
     )
 
     parser_args = parser.parse_args()
@@ -117,15 +117,27 @@ if __name__ == "__main__":
 
         start_validation_time = time.time()
         if stage == 'first':
-            valid_metrics = utils.validation_constructive(loaders['valid_loader'], loaders['train_features_loader'], model, scaler)
+            valid_metrics_projection_head = utils.validation_constructive(loaders['valid_loader'], loaders['train_features_loader'], model, scaler)
+            model.use_projection_head(False)
+            valid_metrics_encoder = utils.validation_constructive(loaders['valid_loader'], loaders['train_features_loader'], model, scaler)
+            model.use_projection_head(True)
+            print(
+                'epoch {}, train time {:.2f} valid time {:.2f} train loss {:.2f}\nvalid acc dict projection head {}\nvalid acc dict encoder {}'.format(
+                    epoch,
+                    end_training_time - start_training_time,
+                    time.time() - start_validation_time,
+                    train_metrics['loss'], valid_metrics_projection_head, valid_metrics_encoder))
+            valid_metrics = valid_metrics_projection_head
         else:
             valid_metrics = utils.validation_ce(model, criterion, loaders['valid_loader'], scaler)
-        end_validation_time = time.time()
+            print(
+                'epoch {}, train time {:.2f} valid time {:.2f} train loss {:.2f}\n valid acc dict {}\n'.format(
+                    epoch,
+                    end_training_time - start_training_time,
+                    time.time() - start_validation_time,
+                    train_metrics['loss'], valid_metrics))
 
-        print('epoch {}, train time {:.2f} valid time {:.2f} train loss {:.2f} valid acc dict {}'.format(epoch,
-                                                                                                         end_training_time - start_training_time,
-                                                                                                         end_validation_time - start_validation_time,
-                                                                                                         train_metrics['loss'], valid_metrics))
+
         # write train and valid metrics to the logs
         utils.add_to_tensorboard_logs(writer, train_metrics['loss'], "Loss/train", epoch)
         for valid_metric in valid_metrics:
@@ -136,14 +148,25 @@ if __name__ == "__main__":
                 # in case valid metric is a list
                 pass
 
-        utils.add_to_logs(
-            logging,
-            "Epoch {}, train loss: {:.4f} valid metrics: {}".format(
-                epoch,
-                train_metrics['loss'],
-                valid_metrics
-            ),
-        )
+        if stage == 'first':
+            utils.add_to_logs(
+                logging,
+                "Epoch {}, train loss: {:.4f}\nvalid metrics projection head: {}\nvalid metric encoder: {}".format(
+                    epoch,
+                    train_metrics['loss'],
+                    valid_metrics_projection_head,
+                    valid_metrics_encoder
+                ),
+            )
+        else:
+            utils.add_to_logs(
+                logging,
+                "Epoch {}, train loss: {:.4f} valid metrics: {}".format(
+                    epoch,
+                    train_metrics['loss'],
+                    valid_metrics
+                ),
+            )
         # check if the best value of metric changed. If so -> save the model
         if valid_metrics[target_metric] > metric_best:
             utils.add_to_logs(

@@ -32,21 +32,30 @@ def create_encoder(backbone):
 
 
 class SupConModel(nn.Module):
-    def __init__(self, backbone='resnet50', embedding_dim=128, second_stage=False, num_classes=None):
+    def __init__(self, backbone='resnet50', projection_dim=128, second_stage=False, num_classes=None):
         super(SupConModel, self).__init__()
-        self.encoder, features_dim = create_encoder(backbone)
+        self.encoder, self.features_dim = create_encoder(backbone)
         self.second_stage = second_stage
-        self.embedding_dim = embedding_dim
+        self.projection_head = True
+        self.projection_dim = projection_dim
+        self.embed_dim = projection_dim
 
         if self.second_stage:
             for param in self.encoder.parameters():
                 param.requires_grad = False
-            self.classifier = nn.Linear(features_dim, num_classes)
+            self.classifier = nn.Linear(self.features_dim, num_classes)
         else:
             self.head = nn.Sequential(
-                nn.Linear(features_dim, features_dim),
+                nn.Linear(self.features_dim, self.features_dim),
                 nn.ReLU(inplace=True),
-                nn.Linear(features_dim, self.embedding_dim))
+                nn.Linear(self.features_dim, self.projection_dim))
+
+    def use_projection_head(self, mode):
+        self.projection_head = mode
+        if mode:
+            self.embed_dim = self.projection_dim
+        else:
+            self.embed_dim = self.features_dim
 
     def forward(self, x):
         if self.second_stage:
@@ -54,4 +63,7 @@ class SupConModel(nn.Module):
             return self.classifier(feat)
         else:
             feat = self.encoder(x).squeeze()
-            return F.normalize(self.head(feat), dim=1)
+            if self.projection_head:
+                return F.normalize(self.head(feat), dim=1)
+            else:
+                return F.normalize(feat, dim=1)

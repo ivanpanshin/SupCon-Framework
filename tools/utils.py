@@ -1,6 +1,4 @@
 import torch
-import torchvision
-import pandas as pd
 import albumentations as A
 from albumentations import pytorch as AT
 from torch.utils.data import DataLoader
@@ -15,8 +13,8 @@ from pytorch_metric_learning.utils.accuracy_calculator import AccuracyCalculator
 from .losses import LOSSES
 from .optimizers import OPTIMIZERS
 from .schedulers import SCHEDULERS
-from .datasets import SupConDataset
 from .models import SupConModel
+from .datasets import create_supcon_dataset
 
 
 def seed_everything(seed=42):
@@ -81,18 +79,20 @@ def build_transforms(second_stage):
 
 
 def build_loaders(data_dir, transforms, batch_sizes, num_workers, second_stage=False):
+    dataset_name = data_dir.split('/')[-1]
+
     if second_stage:
-        train_features_dataset = SupConDataset(data_dir=data_dir, train=True,
+        train_features_dataset = create_supcon_dataset(dataset_name, data_dir=data_dir, train=True,
                                                transform=transforms['train_transforms'], second_stage=True)
     else:
         # train_features_dataset is used for evaluation -> hence, we don't need TwoCropTransform
-        train_features_dataset = SupConDataset(data_dir=data_dir, train=True,
+        train_features_dataset = create_supcon_dataset(dataset_name, data_dir=data_dir, train=True,
                                                transform=transforms['valid_transforms'], second_stage=True)
 
-        train_supcon_dataset = SupConDataset(data_dir=data_dir, train=True,
+        train_supcon_dataset = create_supcon_dataset(dataset_name, data_dir=data_dir, train=True,
                                                transform=TwoCropTransform(transforms['train_transforms']), second_stage=False)
 
-    valid_dataset = SupConDataset(data_dir=data_dir, train=False,
+    valid_dataset = create_supcon_dataset(dataset_name, data_dir=data_dir, train=False,
                                                transform=transforms['valid_transforms'], second_stage=True)
 
     if not second_stage:
@@ -138,7 +138,7 @@ def build_optim(model, optimizer_params, scheduler_params, loss_params):
 
 def compute_embeddings(loader, model, scaler):
     # note that it's okay to do len(loader) * bs, since drop_last=True is enabled
-    total_embeddings = np.zeros((len(loader)*loader.batch_size, model.embedding_dim))
+    total_embeddings = np.zeros((len(loader)*loader.batch_size, model.embed_dim))
     total_labels = np.zeros(len(loader)*loader.batch_size)
 
     for idx, (images, labels) in enumerate(loader):

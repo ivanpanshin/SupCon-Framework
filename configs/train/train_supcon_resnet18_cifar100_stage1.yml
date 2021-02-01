@@ -8,11 +8,11 @@ train:
   amp: True # set this to True, if your GPU supports FP16. 2080Ti - okay, 1080Ti - not okay
   ema: True # optional, but I recommend it, since the training might get unstable otherwise
   ema_decay_per_epoch: 0.3 # 0.3 for middle/big datasets. Increase, if you have low amount of samples
-  logging_name: supcon_first_stage_cifar10
+  logging_name: supcon_first_stage_cifar100
   target_metric: precision_at_1
   stage: first # first = Supcon, second = FC finetuning for classification
 
-dataset: data/cifar10
+dataset: data/cifar100
 
 dataloaders:
   train_batch_size: 200 # the higher - the better

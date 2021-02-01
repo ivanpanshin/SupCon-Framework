@@ -17,6 +17,7 @@ To be more precise, in this implementations you will find:
 - Automatic Mixed Precision (torch version) training in order to be able to train with a bigger batch size (roughly by a factor of 2).
 - LabelSmoothing loss, and [LRFinder](https://github.com/davidtvs/pytorch-lr-finder) for the second stage of the training (FC).
 - TensorBoard logs, checkpoints
+- Support of [timm models](https://github.com/rwightman/pytorch-image-models), and [pytorch-optimizer](https://github.com/jettify/pytorch-optimizer)
 
 
 ## Install
@@ -63,6 +64,19 @@ Those are t-SNE visualizations for Cifar100 for validation and train with SupCon
 
 Those are t-SNE visualizations for Cifar100 for validation and train with SupCon (top), and validation and train with CE (bottom).
 
+## Results 
+
+
+| Model  | Stage | Dataset | Accuracy | 
+| ------------- | ------------- | ------------- | ------------- |
+| ResNet18  | Frist  |  CIFAR10  | 95.9  |
+| ResNet18  | Second  |  CIFAR10  | 94.9  |
+| ResNet18  | Frist  |  CIFAR100  | 79.0  |
+| ResNet18  | Second  |  CIFAR100  | 77.9  |
+
+Note that even though the accuracy on the second stage is lower, it's not always the case. In my experience, the difference between stages is usually around 1 percent, including the difference that favors the second stage. 
+
+
 ## FAQ
 
 - Q: What hyperparameters I should try to change? 
@@ -84,3 +98,6 @@ Those are t-SNE visualizations for Cifar100 for validation and train with SupCon
 
   A: You only need to choose the `ema_decay_per_epoch` parameter in the config. The heuristic is fairly simple. If your dataset is big, then something as small as 0.3 will do just fine. And as your dataset gets smaller, you can increase `ema_decay_per_epoch`. Thanks to bonlime for this idea. I advice you to check his great [pytorch tools](https://github.com/bonlime/pytorch-tools) repo, it's a hidden gem. 
  
+- Q: Is it better than training with Cross Entropy/Label Smoothing/etc? 
+
+  A: Unfortunately, in my experience, it's much easier to get better results with something like CE. It's more stable, faster to train, and simply produces better or the same results. For instance, in case on CIFAR10/100 it's trivial to train ResNet18 up tp 96/81 percent respectively. Of cource, I've seen cased where SupCon performs better, but it takes quite a bit of work to make it outperform CE. 

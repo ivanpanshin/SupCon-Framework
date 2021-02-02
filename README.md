@@ -42,23 +42,25 @@ pip install -r requirements.txt
 
 In order to execute Cifar10 training run:
 ```
-    python train.py --config_name configs/train/train_supcon_resnet18_cifar10_stage1.yml
-    python swa.py --config_name configs/train/swa_supcon_resnet18_cifar100_stage1.yml
-    python train.py --config_name configs/train/train_supcon_resnet18_cifar10_stage2.yml
-    python swa.py --config_name configs/train/swa_supcon_resnet18_cifar100_stage2.yml
+python train.py --config_name configs/train/train_supcon_resnet18_cifar10_stage1.yml
+python swa.py --config_name configs/train/swa_supcon_resnet18_cifar100_stage1.yml
+python train.py --config_name configs/train/train_supcon_resnet18_cifar10_stage2.yml
+python swa.py --config_name configs/train/swa_supcon_resnet18_cifar100_stage2.yml
 ```
 
-The process of training Cifar100 is exactly the same, just change config names from *cifar10* to *cifar100*. 
+The process of training Cifar100 is exactly the same, just change config names from cifar10 to cifar100. 
 
-After that you can check the results of the training either in `logs` or `runs` directory. 
-
+After that you can check the results of the training either in `logs` or `runs` directory. For example, in order to check tensorboard logs for the first stage of Cifar10 training, run:
+```
+tensorboard --logdir runs/supcon_first_stage_cifar10
+```
 ## Visualizations 
 
 This repo is supplied with t-SNE visualizations so that you can check embeddings you get after the training. Check `t-SNE.ipynb` for details. 
 
 <p align="center"><img src="https://github.com/ivanpanshin/SupCon-Framework/blob/main/images/t-SNE-cifar10.png?raw=true" width="600"></p>
 
-Those are t-SNE visualizations for Cifar100 for validation and train with SupCon (top), and validation and train with CE (bottom).
+Those are t-SNE visualizations for Cifar10 for validation and train with SupCon (top), and validation and train with CE (bottom).
 
 <p align="center"><img src="https://github.com/ivanpanshin/SupCon-Framework/blob/main/images/t-SNE-cifar100.png?raw=true" width="600"></p>
 

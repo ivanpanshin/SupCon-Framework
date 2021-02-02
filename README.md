@@ -4,7 +4,7 @@
 <p align="center"><img src="https://github.com/ivanpanshin/SupCon-Framework/blob/main/images/logo.png?raw=true" width="800"></p>
 
 
-The repo is an implementation of Supervised Contrastive Learning. It's based on another [implementation](https://github.com/HobbitLong/SupContrast), but with several differencies: 
+The repo is an implementation of [Supervised Contrastive Learning](https://arxiv.org/abs/2004.11362). It's based on another [implementation](https://github.com/HobbitLong/SupContrast), but with several differencies: 
 - Fixed bugs (incorrect ResNet implementations, which leads to a very small max batch size), 
 - Offers a lot of additional functionality (first of all, rich validation). 
 
@@ -116,3 +116,7 @@ Third, add your dataset to `DATASETS` dict still inside `tools/datasets.py`, and
 - Q: Is it better than training with Cross Entropy/Label Smoothing/etc? 
 
   A: Unfortunately, in my experience, it's much easier to get better results with something like CE. It's more stable, faster to train, and simply produces better or the same results. For instance, in case on CIFAR10/100 it's trivial to train ResNet18 up tp 96/81 percent respectively. Of cource, I've seen cased where SupCon performs better, but it takes quite a bit of work to make it outperform CE. 
+
+- Q: How long should I train with SupCon?
+  
+  A: The answer is tricky. On one hand, authors of the original paper claim that the longer you train with SupCon, the better it gets. However, I did not observe such a behavior in my tests. So the only recommendation I can give is the following: start with 100 epochs for easy datasets (like CIFAR10/100), and 1000 for more industrial ones. Then - monitor the training process. If the validaton metric (such as `precision_at_1`) doesn't impove for several dozens of epochs - you can stop the training. You might incorporate early stopping for this reason into the pipeline. 

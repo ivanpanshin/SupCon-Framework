@@ -24,7 +24,7 @@ To be more precise, in this implementations you will find:
 
 1. Clone the repo:
 ```
-git clone https://github.com/ivanpanshin/SupCon-Framework
+git clone https://github.com/ivanpanshin/SupCon-Framework && cd SupCon-Framework/
 ```
 
 2. Create a clean virtual environment 
@@ -34,7 +34,7 @@ source venv/bin/activate
 ```
 3. Install dependencies
 ````
-python -m pip install –upgrade pip
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 ````
 

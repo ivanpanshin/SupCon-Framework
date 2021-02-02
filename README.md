@@ -43,9 +43,9 @@ pip install -r requirements.txt
 In order to execute Cifar10 training run:
 ```
 python train.py --config_name configs/train/train_supcon_resnet18_cifar10_stage1.yml
-python swa.py --config_name configs/train/swa_supcon_resnet18_cifar100_stage1.yml
+python swa.py --config_name configs/train/swa_supcon_resnet18_cifar10_stage1.yml
 python train.py --config_name configs/train/train_supcon_resnet18_cifar10_stage2.yml
-python swa.py --config_name configs/train/swa_supcon_resnet18_cifar100_stage2.yml
+python swa.py --config_name configs/train/swa_supcon_resnet18_cifar10_stage2.yml
 ```
 
 The process of training Cifar100 is exactly the same, just change config names from cifar10 to cifar100. 
@@ -77,6 +77,8 @@ Those are t-SNE visualizations for Cifar100 for validation and train with SupCon
 | ResNet18  | Second  |  CIFAR100  | 77.9  |
 
 Note that even though the accuracy on the second stage is lower, it's not always the case. In my experience, the difference between stages is usually around 1 percent, including the difference that favors the second stage. 
+
+Training time for the whole pipeline (without any early stopping) on CIFAR10 is around 4 hours (single 2080Ti with AMP). However, with reasonable early stopping that value goes down to around 2.5 hours. 
 
 ## Custom datasets
 

@@ -78,7 +78,7 @@ Those are t-SNE visualizations for Cifar100 for validation and train with SupCon
 
 Note that even though the accuracy on the second stage is lower, it's not always the case. In my experience, the difference between stages is usually around 1 percent, including the difference that favors the second stage. 
 
-Training time for the whole pipeline (without any early stopping) on CIFAR10 is around 4 hours (single 2080Ti with AMP). However, with reasonable early stopping that value goes down to around 2.5 hours. 
+Training time for the whole pipeline (without any early stopping) on CIFAR10 or CIFAR100 is around 4 hours (single 2080Ti with AMP). However, with reasonable early stopping that value goes down to around 2.5-3 hours. 
 
 ## Custom datasets
 

@@ -78,6 +78,17 @@ Those are t-SNE visualizations for Cifar100 for validation and train with SupCon
 
 Note that even though the accuracy on the second stage is lower, it's not always the case. In my experience, the difference between stages is usually around 1 percent, including the difference that favors the second stage. 
 
+## Custom datasets
+
+It's fairly easy to adapt this pipeline to custom datasets. First, you need to check `tools/datasets.py` for that. Second, add a new class for your dataset. The only guideline here is to follow the same augmentation logic, that is 
+```
+        if self.second_stage:
+            image = self.transform(image=image)['image']
+        else:
+            image = self.transform(image)
+```
+
+Third, add your dataset to `DATASETS` dict still inside `tools/datasets.py`, and you're good to go. 
 
 ## FAQ
 

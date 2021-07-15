@@ -99,16 +99,16 @@ Third, add your dataset to `DATASETS` dict still inside `tools/datasets.py`, and
 
 ## FAQ
 
-- Q: What hyperparameters I should try to change? 
+- Q: What hyperparameters should I try to change? 
 
-  A: First of all, learning rate. Second of all, try to change the augmentation policy. SupCon is build around "cropping + color jittering" scheme, so you can try changing the cropping size or the intensity of jittering. Check `tools.utils.build_transforms` for that.
+  A: First of all, learning rate. Second of all, try to change the augmentation policy. SupCon is built around "cropping + color jittering" scheme, so you can try changing the cropping size or the intensity of jittering. Check `tools.utils.build_transforms` for that.
 - Q: What backbone and batch size should I use? 
   
-  A: This is quite simple. Take the biggest backbone you can, and after that take the highest batch size your GPU can offer. The reason for that: SupCon is more prone (than regular classification training with CE/LabelSmoothing/etc) to improving with stronger backbones. Moverover, it has a property of explicit hard positive and negative mining. It means that the higher the batch size - the more difficult and helpful samples you supply to your model.   
+  A: This is quite simple. Take the biggest backbone that you can, and after that take the highest batch size your GPU can offer. The reason for that: SupCon is more prone (than regular classification training with CE/LabelSmoothing/etc) to improving with stronger backbones. Moverover, it has a property of explicit hard positive and negative mining. It means that the higher the batch size - the more difficult and helpful samples you supply to the model.   
   
 - Q: Do I need the second stage of the training? 
 
-  A: Not necessarily. You can do classification based only on embeddings. In order to do that compute embeddings for the train set, and at inference time do the following: take a sample, compute its embedding, take the closest one from the training, take its class. To make this fast and efficient, you something like [faiss](https://github.com/facebookresearch/faiss) for similarity search. Note that this is actually how validation is done in this repo. Moveover, during training you will see a metric `precision_at_1`. This is actually just accuracy based solely on embeddings. 
+  A: Not necessarily. You can do classification based only on embeddings. In order to do that compute embeddings for the train set, and at inference time do the following: take a sample, compute its embedding, take the closest one from the training, take its class. To make this fast and efficient, you something like [faiss](https://github.com/facebookresearch/faiss) for similarity search. Note that this is actually how validation is done in this repo. Moveover, during training you will see a metric `precision_at_1`. This is actually just an accuracy based solely on embeddings. 
  
 - Q: Should I use AMP?
 
@@ -120,7 +120,7 @@ Third, add your dataset to `DATASETS` dict still inside `tools/datasets.py`, and
  
 - Q: Is it better than training with Cross Entropy/Label Smoothing/etc? 
 
-  A: Unfortunately, in my experience, it's much easier to get better results with something like CE. It's more stable, faster to train, and simply produces better or the same results. For instance, in case on CIFAR10/100 it's trivial to train ResNet18 up tp 96/81 percent respectively. Of cource, I've seen cased where SupCon performs better, but it takes quite a bit of work to make it outperform CE. 
+  A: Unfortunately, in my experience, it's much easier to get better results with something like CE. It's more stable, faster to train, and simply produces better or the same results. For instance, in case on CIFAR10/100 it's trivial to train ResNet18 up tp 96/81 percent respectively. Of cource, I've seen cases where SupCon performs better, but it takes quite a bit of work to make it outperform CE. 
 
 - Q: How long should I train with SupCon?
   
